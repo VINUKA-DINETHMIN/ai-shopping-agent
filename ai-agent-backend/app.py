@@ -1,14 +1,14 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS  # type: ignore
-import requests  # type: ignore
-from bs4 import BeautifulSoup  # type: ignore
+from flask_cors import CORS
+import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all domains by default
+CORS(app)
 
 def scrape_products(product_type):
     # Construct the URL for the product listings based on the product type
-    url = f'https://www.ebay.com/s?k={product_type}'  # Example URL, adjust for real scraping
+    url = f'https://www.ebay.com/sch/i.html?_nkw={product_type}'
     
     # Send a GET request to the website
     response = requests.get(url)
@@ -23,20 +23,18 @@ def scrape_products(product_type):
     
     # Extract product information (adjust the selectors based on the website structure)
     products = []
+    listings = soup.select('.s-item')  # Example selector for eBay listings
     
-    # Example: Find all product containers (adjust the class name or tag)
-    product_containers = soup.find_all('li', class_='s-item')  # Adjust the selector for eBay
-    
-    for container in product_containers:
-        # Extract product name (adjust the selector)
-        name = container.find('h3', class_='s-item__title')
+    for listing in listings:
+        # Extract product name
+        name = listing.select_one('.s-item__title')
         if name:
             name = name.text.strip()
         else:
             continue
         
-        # Extract product price (adjust the selector)
-        price = container.find('span', class_='s-item__price')
+        # Extract product price
+        price = listing.select_one('.s-item__price')
         if price:
             price = price.text.strip().replace('$', '').replace(',', '')
         else:
@@ -51,24 +49,27 @@ def scrape_products(product_type):
     
     return products
 
-@app.route("/api/auth/recommend", methods=["POST"])  # Adjusted URL
+@app.route("/api/auth/recommend", methods=["POST"])
 def recommend():
-    data = request.json
-    budget = float(data.get("budget", 0))
-    product_type = data.get("product", "").lower()
+    try:
+        data = request.json
+        budget = float(data.get("budget", 0))
+        product_type = data.get("product", "").lower()
 
-    # Scrape products based on the requested product type
-    products = scrape_products(product_type)
+        # Scrape products based on the requested product type
+        products = scrape_products(product_type)
 
-    # Filter products within the budget
-    recommendations = [
-        product for product in products if product["price"] <= budget
-    ]
+        # Filter products within the budget
+        recommendations = [
+            product for product in products if product["price"] <= budget
+        ]
 
-    # Log recommendations for debugging
-    print(f"Recommendations: {recommendations}")
+        # Log recommendations for debugging
+        print(f"Recommendations: {recommendations}")
 
-    return jsonify(recommendations)
+        return jsonify(recommendations)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True)
