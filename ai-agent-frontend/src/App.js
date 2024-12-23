@@ -94,25 +94,28 @@ function App() {
     item.name.toLowerCase().includes(filterText.toLowerCase())
   );
 
-  const startListeningForBudget = () => {
+  const startListening = () => {
     recognition.start();
     recognition.onresult = (event) => {
       const latestTranscript = event.results[event.results.length - 1][0].transcript.toLowerCase();
       setTranscript(latestTranscript); // Update the transcript with the latest result
-      const budget = latestTranscript.match(/\d+/); // Extract number from the command
-      if (budget) {
-        setCriteria((prev) => ({ ...prev, budget: budget[0] }));
-      }
-    };
-  };
 
-  const startListeningForProduct = () => {
-    recognition.start();
-    recognition.onresult = (event) => {
-      const latestTranscript = event.results[event.results.length - 1][0].transcript.toLowerCase();
-      setTranscript(latestTranscript); // Update the transcript with the latest result
-      const product = latestTranscript.replace("product", "").trim();
-      setCriteria((prev) => ({ ...prev, product }));
+      // Extract budget and product from the transcript
+      const budgetMatch = latestTranscript.match(/\d+/); // Extract number from the command
+      const productMatch = latestTranscript.replace("product", "").trim();
+
+      if (budgetMatch) {
+        setCriteria((prev) => ({ ...prev, budget: budgetMatch[0] }));
+      }
+
+      if (productMatch) {
+        setCriteria((prev) => ({ ...prev, product: productMatch }));
+      }
+
+      // Automatically submit the form after capturing both budget and product
+      if (budgetMatch && productMatch) {
+        handleSubmit(new Event("submit"));
+      }
     };
   };
 
@@ -130,14 +133,6 @@ function App() {
             required
             className="input-field"
           />
-          <button
-            type="button"
-            onClick={startListeningForBudget}
-            className="voice-button"
-            disabled={isListening}
-          >
-            {isListening ? "Listening..." : "Voice Command for Budget"}
-          </button>
         </div>
         <div className="form-group">
           <label>Product Type:</label>
@@ -149,14 +144,6 @@ function App() {
             required
             className="input-field"
           />
-          <button
-            type="button"
-            onClick={startListeningForProduct}
-            className="voice-button"
-            disabled={isListening}
-          >
-            {isListening ? "Listening..." : "Voice Command for Product"}
-          </button>
         </div>
         <div className="form-group">
           <label>Use NLP for better results:</label>
@@ -229,6 +216,15 @@ function App() {
           ))
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={startListening}
+        className="voice-button"
+        disabled={isListening}
+      >
+        {isListening ? "Listening..." : "Voice Command for Budget and Product"}
+      </button>
     </div>
   );
 }
