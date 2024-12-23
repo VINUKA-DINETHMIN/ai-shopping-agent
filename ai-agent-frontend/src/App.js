@@ -1,23 +1,79 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import './App.css'; // Import the CSS file for styling
 
 function App() {
   const [criteria, setCriteria] = useState({ budget: "", product: "" });
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [sortOption, setSortOption] = useState("price");
+  const [filterText, setFilterText] = useState("");
+  const [useNLP, setUseNLP] = useState(false);
+  const [currency, setCurrency] = useState("USD");
+  const [language, setLanguage] = useState("en");
+
+  // Voice Recognition setup
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState(""); // State to store the voice input
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+
+  useEffect(() => {
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event) => {
+      const latestTranscript = event.results[event.results.length - 1][0].transcript;
+      setTranscript(latestTranscript); // Update the transcript with the latest result
+    };
+
+    return () => {
+      recognition.stop();
+    };
+  }, []);
 
   const handleChange = (e) => {
     setCriteria({ ...criteria, [e.target.name]: e.target.value });
   };
 
+  const handleSortChange = (e) => {
+    setSortOption(e.target.value);
+    setResults((prevResults) =>
+      [...prevResults].sort((a, b) => (e.target.value === "price" ? a.price - b.price : a.name.localeCompare(b.name)))
+    );
+  };
+
+  const handleFilterChange = (e) => {
+    setFilterText(e.target.value);
+  };
+
+  const handleNLPChange = (e) => {
+    setUseNLP(e.target.checked);
+  };
+
+  const handleCurrencyChange = (e) => {
+    setCurrency(e.target.value);
+  };
+
+  const handleLanguageChange = (e) => {
+    setLanguage(e.target.value);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); // Show loading state
+    setLoading(true);
 
     try {
       const response = await fetch("http://localhost:5000/api/auth/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(criteria),
+        body: JSON.stringify({ ...criteria, use_nlp: useNLP, currency, language }),
       });
 
       if (!response.ok) {
@@ -25,58 +81,154 @@ function App() {
       }
 
       const data = await response.json();
-      console.log(data); // Log the response data
-      setResults(data);
+      setResults(data.sort((a, b) => a.price - b.price));
     } catch (error) {
       console.error(error);
-      setResults([]); // Clear results on error
+      setResults([]);
     } finally {
-      setLoading(false); // Hide loading state
+      setLoading(false);
     }
   };
 
+  const filteredResults = results.filter((item) =>
+    item.name.toLowerCase().includes(filterText.toLowerCase())
+  );
+
+  const startListeningForBudget = () => {
+    recognition.start();
+    recognition.onresult = (event) => {
+      const latestTranscript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+      setTranscript(latestTranscript); // Update the transcript with the latest result
+      const budget = latestTranscript.match(/\d+/); // Extract number from the command
+      if (budget) {
+        setCriteria((prev) => ({ ...prev, budget: budget[0] }));
+      }
+    };
+  };
+
+  const startListeningForProduct = () => {
+    recognition.start();
+    recognition.onresult = (event) => {
+      const latestTranscript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+      setTranscript(latestTranscript); // Update the transcript with the latest result
+      const product = latestTranscript.replace("product", "").trim();
+      setCriteria((prev) => ({ ...prev, product }));
+    };
+  };
+
   return (
-    <div>
-      <h1>AI Shopping Agent</h1>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Budget:
+    <div className="app-container">
+      <h1 className="title">AI Shopping Agent</h1>
+      <form onSubmit={handleSubmit} className="form-container">
+        <div className="form-group">
+          <label>Budget:</label>
           <input
             type="number"
             name="budget"
             value={criteria.budget}
             onChange={handleChange}
             required
+            className="input-field"
           />
-        </label>
-        <br />
-        <label>
-          Product Type:
+          <button
+            type="button"
+            onClick={startListeningForBudget}
+            className="voice-button"
+            disabled={isListening}
+          >
+            {isListening ? "Listening..." : "Voice Command for Budget"}
+          </button>
+        </div>
+        <div className="form-group">
+          <label>Product Type:</label>
           <input
             type="text"
             name="product"
             value={criteria.product}
             onChange={handleChange}
             required
+            className="input-field"
           />
-        </label>
-        <br />
-        <button type="submit" disabled={loading}>
+          <button
+            type="button"
+            onClick={startListeningForProduct}
+            className="voice-button"
+            disabled={isListening}
+          >
+            {isListening ? "Listening..." : "Voice Command for Product"}
+          </button>
+        </div>
+        <div className="form-group">
+          <label>Use NLP for better results:</label>
+          <input
+            type="checkbox"
+            checked={useNLP}
+            onChange={handleNLPChange}
+            className="checkbox"
+          />
+        </div>
+        <div className="form-group">
+          <label>Currency:</label>
+          <select value={currency} onChange={handleCurrencyChange} className="select-field">
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="INR">INR</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Language:</label>
+          <select value={language} onChange={handleLanguageChange} className="select-field">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+          </select>
+        </div>
+        <button type="submit" disabled={loading} className="submit-button">
           {loading ? "Loading..." : "Get Recommendations"}
         </button>
       </form>
+
+      <div className="transcript-container">
+        <h3>Voice Input:</h3>
+        <p>{transcript}</p>
+      </div>
+
+      <div className="filters-container">
+        <h2>Filters & Sorting</h2>
+        <div className="filter-group">
+          <label>Sort by:</label>
+          <select value={sortOption} onChange={handleSortChange} className="select-field">
+            <option value="price">Price</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+        <div className="filter-group">
+          <label>Filter by Name:</label>
+          <input
+            type="text"
+            value={filterText}
+            onChange={handleFilterChange}
+            placeholder="Enter product name"
+            className="input-field"
+          />
+        </div>
+      </div>
+
       <h2>Recommendations:</h2>
-      <ul>
-        {results.length === 0 ? (
-          <li>No recommendations available.</li>
+      <div className="recommendations-container">
+        {filteredResults.length === 0 ? (
+          <p>No recommendations available.</p>
         ) : (
-          results.map((item, index) => (
-            <li key={index}>
-              {item.name} - Rs. {item.price}
-            </li>
+          filteredResults.map((item, index) => (
+            <div key={index} className="recommendation-card">
+              <a href={item.url} target="_blank" rel="noopener noreferrer" className="recommendation-link">
+                <h3>{item.name}</h3>
+                <p>Price: {currency === "INR" ? `₹${item.price * 75}` : currency === "EUR" ? `€${item.price * 0.9}` : `$${item.price}`}</p>
+              </a>
+            </div>
           ))
         )}
-      </ul>
+      </div>
     </div>
   );
 }
