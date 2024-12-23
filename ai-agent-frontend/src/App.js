@@ -16,6 +16,25 @@ function App() {
   const [transcript, setTranscript] = useState(""); // State to store the voice input
   const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 
+  // Time-based greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const getAssistantMessage = () => {
+    if (!criteria.budget && !criteria.product) {
+      return "What are you looking for today?";
+    } else if (criteria.budget && !criteria.product) {
+      return "Please tell me the product you're looking for.";
+    } else if (!criteria.budget && criteria.product) {
+      return "Please tell me your budget.";
+    }
+    return "How may I assist you further?";
+  };
+
   useEffect(() => {
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -122,6 +141,8 @@ function App() {
   return (
     <div className="app-container">
       <h1 className="title">AI Shopping Agent</h1>
+      <h2>{getGreeting()}, I'm your assistant. {getAssistantMessage()}</h2>
+
       <form onSubmit={handleSubmit} className="form-container">
         <div className="form-group">
           <label>Budget:</label>
