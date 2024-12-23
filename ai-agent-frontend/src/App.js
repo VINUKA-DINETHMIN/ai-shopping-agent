@@ -26,17 +26,38 @@ function App() {
 
     recognition.onend = () => {
       setIsListening(false);
+      // Check if both criteria (budget and product) are set before triggering the form submission
+      if (criteria.budget && criteria.product) {
+        document.querySelector('.submit-button').click();
+      }
     };
 
     recognition.onresult = (event) => {
       const latestTranscript = event.results[event.results.length - 1][0].transcript;
       setTranscript(latestTranscript); // Update the transcript with the latest result
+
+      // Extract budget and product from the transcript
+      const budgetMatch = latestTranscript.match(/\d+/); // Extract number from the command
+      const productMatch = latestTranscript.replace("product", "").trim();
+
+      if (budgetMatch) {
+        setCriteria((prev) => ({ ...prev, budget: budgetMatch[0] }));
+      }
+
+      if (productMatch) {
+        setCriteria((prev) => ({ ...prev, product: productMatch }));
+      }
+
+      // Automatically submit the form after capturing both budget and product
+      if (budgetMatch && productMatch) {
+        document.querySelector('.submit-button').click();
+      }
     };
 
     return () => {
       recognition.stop();
     };
-  }, []);
+  }, [criteria]);
 
   const handleChange = (e) => {
     setCriteria({ ...criteria, [e.target.name]: e.target.value });
@@ -96,27 +117,6 @@ function App() {
 
   const startListening = () => {
     recognition.start();
-    recognition.onresult = (event) => {
-      const latestTranscript = event.results[event.results.length - 1][0].transcript.toLowerCase();
-      setTranscript(latestTranscript); // Update the transcript with the latest result
-
-      // Extract budget and product from the transcript
-      const budgetMatch = latestTranscript.match(/\d+/); // Extract number from the command
-      const productMatch = latestTranscript.replace("product", "").trim();
-
-      if (budgetMatch) {
-        setCriteria((prev) => ({ ...prev, budget: budgetMatch[0] }));
-      }
-
-      if (productMatch) {
-        setCriteria((prev) => ({ ...prev, product: productMatch }));
-      }
-
-      // Automatically submit the form after capturing both budget and product
-      if (budgetMatch && productMatch) {
-        handleSubmit(new Event("submit"));
-      }
-    };
   };
 
   return (
@@ -134,6 +134,7 @@ function App() {
             className="input-field"
           />
         </div>
+        
         <div className="form-group">
           <label>Product Type:</label>
           <input
@@ -170,6 +171,14 @@ function App() {
             <option value="fr">French</option>
           </select>
         </div>
+        <button
+          type="button"
+          onClick={startListening}
+          className="voice-button"
+          disabled={isListening}
+        >
+          {isListening ? "Listening..." : "Voice Command for Budget and Product"}
+        </button>
         <button type="submit" disabled={loading} className="submit-button">
           {loading ? "Loading..." : "Get Recommendations"}
         </button>
@@ -216,15 +225,6 @@ function App() {
           ))
         )}
       </div>
-
-      <button
-        type="button"
-        onClick={startListening}
-        className="voice-button"
-        disabled={isListening}
-      >
-        {isListening ? "Listening..." : "Voice Command for Budget and Product"}
-      </button>
     </div>
   );
 }
