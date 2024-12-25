@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import './App.css'; // Import the CSS file for styling
+import logo from './images/logo.jpg'; // Assuming the logo is in the assets folder
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState('');
   const [criteria, setCriteria] = useState({ budget: "", product: "" });
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -17,11 +20,18 @@ function App() {
   const [chatMessages, setChatMessages] = useState([]); // State for chat messages
   const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 
+  const handleLogin = (name) => {
+    setUsername(name);
+    setIsLoggedIn(true);
+  };
+
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
+    let greeting = '';
+    if (hour < 12) greeting = "Good morning";
+    else if (hour < 18) greeting = "Good afternoon";
+    else greeting = "Good evening";
+    return `${greeting}, ${username}`;
   };
 
   const getAssistantMessage = () => {
@@ -36,6 +46,12 @@ function App() {
   };
 
   useEffect(() => {
+    if (isLoggedIn) {
+      const greetingMessage = getGreeting();
+      const speech = new SpeechSynthesisUtterance(greetingMessage);
+      window.speechSynthesis.speak(speech);
+    }
+
     recognition.continuous = true;
     recognition.interimResults = true;
 
@@ -73,7 +89,7 @@ function App() {
     return () => {
       recognition.stop();
     };
-  }, [criteria]);
+  }, [criteria, isLoggedIn]);
 
   const handleChange = (e) => {
     setCriteria({ ...criteria, [e.target.name]: e.target.value });
@@ -161,10 +177,25 @@ function App() {
     }
   };
 
+  if (!isLoggedIn) {
+    return (
+      <div className="login-container">
+        <h1>Login</h1>
+        <input
+          type="text"
+          placeholder="Enter your name"
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <button onClick={() => handleLogin(username)}>Login</button>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
+      <img src={logo} alt="Logo" className="logo" />
       <h1 className="title">AI Shopping Agent</h1>
-      <h2>{getGreeting()}, I'm your assistant. {getAssistantMessage()}</h2>
+      <h2>{getGreeting()}. {getAssistantMessage()}</h2>
 
       {error && <p className="error-message">{error}</p>}
 
@@ -279,6 +310,7 @@ function App() {
               <a href={item.url} target="_blank" rel="noopener noreferrer" className="recommendation-link">
                 <h3>{item.name}</h3>
                 <p>Price: {currency === "INR" ? `₹${item.price * 75}` : currency === "EUR" ? `€${item.price * 0.9}` : `$${item.price}`}</p>
+                <p>{item.description}</p>
               </a>
             </div>
           ))
@@ -286,26 +318,17 @@ function App() {
       </div>
 
       <div className="chat-container">
-        <h2>Chat with AI Assistant</h2>
+        <h2>Chat with Assistant</h2>
         <div className="chat-messages">
-          {chatMessages.map((msg, index) => (
-            <div key={index} className={`chat-message ${msg.sender}`}>
-              <p>{msg.text}</p>
+          {chatMessages.map((message, index) => (
+            <div key={index} className={message.sender === "user" ? "user-message" : "chatgpt-message"}>
+              {message.text}
             </div>
           ))}
         </div>
-        <input
-          type="text"
-          placeholder="Ask me anything..."
-          className="chat-input"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && e.target.value) {
-              handleChatSubmit(e.target.value);
-              e.target.value = '';
-            }
-          }}
-        />
+        <button onClick={() => handleChatSubmit("Hi")} className="chat-button">Send Message</button>
       </div>
+      <h5>Copyright © 2024 Design & Developed by Vinuka Dinethmin & Danuddika Jayasundara. All Rights Reserved.</h5>
     </div>
   );
 }
