@@ -10,6 +10,8 @@ function App() {
   const [useNLP, setUseNLP] = useState(false);
   const [currency, setCurrency] = useState("USD");
   const [language, setLanguage] = useState("en");
+  const [optimization, setOptimization] = useState("value"); // New state for optimization criteria
+  const [error, setError] = useState(null); // State for error handling
 
   // Voice Recognition setup
   const [isListening, setIsListening] = useState(false);
@@ -45,7 +47,6 @@ function App() {
 
     recognition.onend = () => {
       setIsListening(false);
-      // Check if both criteria (budget and product) are set before triggering the form submission
       if (criteria.budget && criteria.product) {
         document.querySelector('.submit-button').click();
       }
@@ -53,10 +54,9 @@ function App() {
 
     recognition.onresult = (event) => {
       const latestTranscript = event.results[event.results.length - 1][0].transcript;
-      setTranscript(latestTranscript); // Update the transcript with the latest result
+      setTranscript(latestTranscript);
 
-      // Extract budget and product from the transcript
-      const budgetMatch = latestTranscript.match(/\d+/); // Extract number from the command
+      const budgetMatch = latestTranscript.match(/\d+/);
       const productMatch = latestTranscript.replace("product", "").trim();
 
       if (budgetMatch) {
@@ -67,7 +67,6 @@ function App() {
         setCriteria((prev) => ({ ...prev, product: productMatch }));
       }
 
-      // Automatically submit the form after capturing both budget and product
       if (budgetMatch && productMatch) {
         document.querySelector('.submit-button').click();
       }
@@ -105,15 +104,20 @@ function App() {
     setLanguage(e.target.value);
   };
 
+  const handleOptimizationChange = (e) => {
+    setOptimization(e.target.value);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null); // Reset error on new submit
 
     try {
       const response = await fetch("http://localhost:5000/api/auth/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...criteria, use_nlp: useNLP, currency, language }),
+        body: JSON.stringify({ ...criteria, use_nlp: useNLP, currency, language, optimization }),
       });
 
       if (!response.ok) {
@@ -124,7 +128,7 @@ function App() {
       setResults(data.sort((a, b) => a.price - b.price));
     } catch (error) {
       console.error(error);
-      setResults([]);
+      setError("An error occurred while fetching recommendations.");
     } finally {
       setLoading(false);
     }
@@ -143,6 +147,8 @@ function App() {
       <h1 className="title">AI Shopping Agent</h1>
       <h2>{getGreeting()}, I'm your assistant. {getAssistantMessage()}</h2>
 
+      {error && <p className="error-message">{error}</p>} {/* Display error message */}
+
       <form onSubmit={handleSubmit} className="form-container">
         <div className="form-group">
           <label>Budget:</label>
@@ -153,6 +159,7 @@ function App() {
             onChange={handleChange}
             required
             className="input-field"
+            aria-label="Enter your budget"
           />
         </div>
         
@@ -165,7 +172,16 @@ function App() {
             onChange={handleChange}
             required
             className="input-field"
+            aria-label="Enter product type"
           />
+        </div>
+        <div className="form-group">
+          <label>Optimization Criteria:</label>
+          <select value={optimization} onChange={handleOptimizationChange} className="select-field" aria-label="Select optimization criteria">
+            <option value="value">Maximum Value</option>
+            <option value="price">Minimum Price</option>
+            <option value="reviews">Best Reviews</option>
+          </select>
         </div>
         <div className="form-group">
           <label>Use NLP for better results:</label>
@@ -174,11 +190,12 @@ function App() {
             checked={useNLP}
             onChange={handleNLPChange}
             className="checkbox"
+            aria-label="Enable NLP for better results"
           />
         </div>
         <div className="form-group">
           <label>Currency:</label>
-          <select value={currency} onChange={handleCurrencyChange} className="select-field">
+          <select value={currency} onChange={handleCurrencyChange} className="select-field" aria-label="Select currency">
             <option value="USD">USD</option>
             <option value="EUR">EUR</option>
             <option value="INR">INR</option>
@@ -186,7 +203,7 @@ function App() {
         </div>
         <div className="form-group">
           <label>Language:</label>
-          <select value={language} onChange={handleLanguageChange} className="select-field">
+          <select value={language} onChange={handleLanguageChange} className="select-field" aria-label="Select language">
             <option value="en">English</option>
             <option value="es">Spanish</option>
             <option value="fr">French</option>
@@ -197,10 +214,11 @@ function App() {
           onClick={startListening}
           className="voice-button"
           disabled={isListening}
+          aria-label="Activate voice command for budget and product"
         >
           {isListening ? "Listening..." : "Voice Command for Budget and Product"}
         </button>
-        <button type="submit" disabled={loading} className="submit-button">
+        <button type="submit" disabled={loading} className="submit-button" aria-label="Submit your request for recommendations">
           {loading ? "Loading..." : "Get Recommendations"}
         </button>
       </form>
@@ -214,7 +232,7 @@ function App() {
         <h2>Filters & Sorting</h2>
         <div className="filter-group">
           <label>Sort by:</label>
-          <select value={sortOption} onChange={handleSortChange} className="select-field">
+          <select value={sortOption} onChange={handleSortChange} className="select-field" aria-label="Sort results by">
             <option value="price">Price</option>
             <option value="name">Name</option>
           </select>
@@ -227,6 +245,7 @@ function App() {
             onChange={handleFilterChange}
             placeholder="Enter product name"
             className="input-field"
+            aria-label="Filter results by name"
           />
         </div>
       </div>
