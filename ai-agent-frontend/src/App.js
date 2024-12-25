@@ -10,15 +10,13 @@ function App() {
   const [useNLP, setUseNLP] = useState(false);
   const [currency, setCurrency] = useState("USD");
   const [language, setLanguage] = useState("en");
-  const [optimization, setOptimization] = useState("value"); // New state for optimization criteria
-  const [error, setError] = useState(null); // State for error handling
-
-  // Voice Recognition setup
+  const [optimization, setOptimization] = useState("value");
+  const [error, setError] = useState(null);
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState(""); // State to store the voice input
+  const [transcript, setTranscript] = useState("");
+  const [chatMessages, setChatMessages] = useState([]); // State for chat messages
   const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 
-  // Time-based greeting
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -111,7 +109,7 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(null); // Reset error on new submit
+    setError(null);
 
     try {
       const response = await fetch("http://localhost:5000/api/auth/recommend", {
@@ -142,12 +140,33 @@ function App() {
     recognition.start();
   };
 
+  const handleChatSubmit = async (message) => {
+    setChatMessages((prev) => [...prev, { text: message, sender: "user" }]);
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/chatgpt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: message }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get response from ChatGPT.");
+      }
+
+      const data = await response.json();
+      setChatMessages((prev) => [...prev, { text: data.chatgpt_response, sender: "chatgpt" }]);
+    } catch (error) {
+      console.error(error);
+      setChatMessages((prev) => [...prev, { text: "Error: Unable to get response.", sender: "chatgpt" }]);
+    }
+  };
+
   return (
     <div className="app-container">
       <h1 className="title">AI Shopping Agent</h1>
       <h2>{getGreeting()}, I'm your assistant. {getAssistantMessage()}</h2>
 
-      {error && <p className="error-message">{error}</p>} {/* Display error message */}
+      {error && <p className="error-message">{error}</p>}
 
       <form onSubmit={handleSubmit} className="form-container">
         <div className="form-group">
@@ -231,7 +250,7 @@ function App() {
       <div className="filters-container">
         <h2>Filters & Sorting</h2>
         <div className="filter-group">
-          <label>Sort by:</label>
+          <label> Sort by:</label>
           <select value={sortOption} onChange={handleSortChange} className="select-field" aria-label="Sort results by">
             <option value="price">Price</option>
             <option value="name">Name</option>
@@ -264,6 +283,28 @@ function App() {
             </div>
           ))
         )}
+      </div>
+
+      <div className="chat-container">
+        <h2>Chat with AI Assistant</h2>
+        <div className="chat-messages">
+          {chatMessages.map((msg, index) => (
+            <div key={index} className={`chat-message ${msg.sender}`}>
+              <p>{msg.text}</p>
+            </div>
+          ))}
+        </div>
+        <input
+          type="text"
+          placeholder="Ask me anything..."
+          className="chat-input"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.value) {
+              handleChatSubmit(e.target.value);
+              e.target.value = '';
+            }
+          }}
+        />
       </div>
     </div>
   );
