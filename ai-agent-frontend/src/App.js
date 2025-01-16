@@ -18,6 +18,7 @@ function App() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [chatMessages, setChatMessages] = useState([]); // State for chat messages
+  const [hasGreeted, setHasGreeted] = useState(false); // New state variable for greeting
   const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 
   const handleLogin = (name) => {
@@ -46,10 +47,11 @@ function App() {
   };
 
   useEffect(() => {
-    if (isLoggedIn) {
+    if (isLoggedIn && !hasGreeted) {
       const greetingMessage = getGreeting();
       const speech = new SpeechSynthesisUtterance(greetingMessage);
       window.speechSynthesis.speak(speech);
+      setHasGreeted(true); // Set hasGreeted to true after greeting
     }
 
     recognition.continuous = true;
@@ -89,7 +91,7 @@ function App() {
     return () => {
       recognition.stop();
     };
-  }, [criteria, isLoggedIn]);
+  }, [criteria, isLoggedIn, hasGreeted]); // Add hasGreeted to dependencies
 
   const handleChange = (e) => {
     setCriteria({ ...criteria, [e.target.name]: e.target.value });
@@ -98,7 +100,7 @@ function App() {
   const handleSortChange = (e) => {
     setSortOption(e.target.value);
     setResults((prevResults) =>
-      [...prevResults].sort((a, b) => (e.target.value === "price" ? a.price - b.price : a.name.localeCompare(b.name)))
+      [...prevResults].sort((a, b) => (e.target.value === "price " ? a.price - b.price : a.name.localeCompare(b.name)))
     );
   };
 
