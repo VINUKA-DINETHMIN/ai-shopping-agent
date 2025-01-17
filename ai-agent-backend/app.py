@@ -189,7 +189,7 @@ def recognize_voice_command():
             return None
 
 # API endpoint to get product recommendations
-@app.route("/api/auth/recommend", methods=["POST"])
+@app.route("/api/auth/recommend", methods=["POST"]) 
 def recommend():
     try:
         data = request.json
