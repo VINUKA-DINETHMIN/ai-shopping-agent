@@ -20,6 +20,7 @@ function App() {
   const [chatMessages, setChatMessages] = useState([]); // State for chat messages
   const [userMessage, setUserMessage] = useState(""); // State for user input in chat
   const [hasGreeted, setHasGreeted] = useState(false); // New state variable for greeting
+  const [context, setContext] = useState(""); // New state variable for context
   const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 
   const handleLogin = (name) => {
@@ -101,7 +102,7 @@ function App() {
   const handleSortChange = (e) => {
     setSortOption(e.target.value);
     setResults((prevResults) =>
-      [...prevResults].sort((a, b) => (e.target.value === "price " ? a.price - b.price : a.name.localeCompare(b.name)))
+      [...prevResults].sort((a, b) => (e.target.value === "price" ? a.price - b.price : a.name.localeCompare(b.name)))
     );
   };
 
@@ -173,14 +174,20 @@ function App() {
   };
 
   const getBotResponse = (message) => {
-    // Simple logic for predefined responses
     const lowerMessage = message.toLowerCase();
+
     if (lowerMessage.includes("hello") || lowerMessage.includes("hi")) {
       return "Hello! How can I assist you today?";
     } else if (lowerMessage.includes("recommend") || lowerMessage.includes("suggest")) {
+      setContext("recommendation"); // Set context to recommendation
       return "I can help you with product recommendations! What are you looking for?";
-    } else if (lowerMessage.includes("thank you")) {
-      return "You're welcome! If you have any more questions, feel free to ask.";
+    } else if (context === "recommendation" && lowerMessage.includes("under") && lowerMessage.match(/\d+/)) {
+      const budget = lowerMessage.match(/\d+/)[0]; // Extract budget
+      setContext("budget"); // Update context to budget
+      return `Got it! You're looking for something under $${budget}. What type of laptop are you interested in?`;
+    } else if (context === "budget" && lowerMessage.includes("laptop")) {
+      setContext(""); // Reset context
+      return "Great choice! I will find some gaming laptops for you.";
     } else {
       return "I'm sorry, I didn't understand that. Can you please rephrase?";
     }
