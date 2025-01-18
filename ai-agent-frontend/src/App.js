@@ -18,6 +18,7 @@ function App() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [chatMessages, setChatMessages] = useState([]); // State for chat messages
+  const [userMessage, setUserMessage] = useState(""); // State for user input in chat
   const [hasGreeted, setHasGreeted] = useState(false); // New state variable for greeting
   const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 
@@ -158,24 +159,30 @@ function App() {
     recognition.start();
   };
 
-  const handleChatSubmit = async (message) => {
-    setChatMessages((prev) => [...prev, { text: message, sender: "user" }]);
-    try {
-      const response = await fetch("http://localhost:5000/api/auth/chatgpt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: message }),
-      });
+  const handleChatSubmit = (e) => {
+    e.preventDefault();
+    if (!userMessage.trim()) return; // Prevent empty messages
 
-      if (!response.ok) {
-        throw new Error("Failed to get response from ChatGPT.");
-      }
+    setChatMessages((prev) => [...prev, { text: userMessage, sender: "user" }]);
+    
+    // Simple predefined responses
+    const botResponse = getBotResponse(userMessage);
+    setChatMessages((prev) => [...prev, { text: botResponse, sender: "chatgpt" }]);
+    
+    setUserMessage(""); // Clear input after sending
+  };
 
-      const data = await response.json();
-      setChatMessages((prev) => [...prev, { text: data.chatgpt_response, sender: "chatgpt" }]);
-    } catch (error) {
-      console.error(error);
-      setChatMessages((prev) => [...prev, { text: "Error: Unable to get response.", sender: "chatgpt" }]);
+  const getBotResponse = (message) => {
+    // Simple logic for predefined responses
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes("hello") || lowerMessage.includes("hi")) {
+      return "Hello! How can I assist you today?";
+    } else if (lowerMessage.includes("recommend") || lowerMessage.includes("suggest")) {
+      return "I can help you with product recommendations! What are you looking for?";
+    } else if (lowerMessage.includes("thank you")) {
+      return "You're welcome! If you have any more questions, feel free to ask.";
+    } else {
+      return "I'm sorry, I didn't understand that. Can you please rephrase?";
     }
   };
 
@@ -311,7 +318,7 @@ function App() {
             <div key={index} className="recommendation-card">
               <a href={item.url} target="_blank" rel="noopener noreferrer" className="recommendation-link">
                 <h3>{item.name}</h3>
-                <p>Price: {currency === "INR" ? `₹${item.price * 75}` : currency === "EUR" ? `€${item.price * 0.9}` : `$${item.price}`}</p>
+                <p>Price: {currency === "INR" ? `₹${item.price * 75}` : currency === "EUR" ? `€${item.price * 0.9}`: `$${item.price}`}</p>
                 <p>{item.description}</p>
               </a>
             </div>
@@ -321,14 +328,24 @@ function App() {
 
       <div className="chat-container">
         <h2>Chat with Assistant</h2>
-        <div className="chat-messages">
+        <div className="chat-messages" style={{ maxHeight: '300px', overflowY: 'scroll' }}>
           {chatMessages.map((message, index) => (
             <div key={index} className={message.sender === "user" ? "user-message" : "chatgpt-message"}>
               {message.text}
             </div>
           ))}
         </div>
-        <button onClick={() => handleChatSubmit("Hi")} className="chat-button">Send Message</button>
+        <form onSubmit={handleChatSubmit} className="chat-input-form">
+          <input
+            type="text"
+            value={userMessage}
+            onChange={(e) => setUserMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="chat-input"
+            aria-label="Type your message"
+          />
+          <button type="submit" className="chat-button">Send</button>
+        </form>
       </div>
       <h5>Copyright © 2024 Design & Developed by Vinuka Dinethmin & Danuddika Jayasundara. All Rights Reserved.</h5>
     </div>
